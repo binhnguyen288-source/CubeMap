@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <input type="file" id="inputFile">
+        <script src="./test.js"></script>
+        <script>
+            Module.onRuntimeInitialized = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext("2d", {
+                    alpha: false
+                });
+                const image = document.createElement('img');
+
+                function selectedFile(ev) {
+
+                    const reader = new FileReader();
+
+                    reader.onload = ev => {
+
+                        image.onload = () => {
+                            canvas.width = image.naturalWidth;
+                            canvas.height = image.naturalHeight;
+                            ctx.drawImage(image, 0, 0);
+                            const image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const nCubeSide = canvas.width / 4;
+                            const srcPtr = Module._malloc(4 * canvas.width * canvas.height);
+                            const dstPtr = Module._malloc(3 * canvas.width ** 2);
+                            Module.HEAPU8.set(image_data.data, srcPtr);
+                            Module.ccall('jsCubeMap', 'number', ['number', 'number', 'number', 'number'], [srcPtr, dstPtr, canvas.width, canvas.height]);
+
+                            canvas.height = 3 * canvas.width / 4;
+                            const subArray = new Uint8ClampedArray(Module.HEAPU8.subarray(dstPtr, dstPtr + 3 * canvas.width ** 2));
+
+                            const dstImageData = new ImageData(subArray, canvas.width);
+
+                            ctx.putImageData(dstImageData, 0, 0, 0, 0, canvas.width, canvas.height);
+
+                            Module._free(srcPtr);
+                            Module._free(dstPtr);
+                        }
+                        image.src = ev.target.result;
+                    }
+                    reader.readAsDataURL(ev.files[0]);
+                }
+                document.body.appendChild(canvas);
+                const inputField = document.getElementById("inputFile");
+
+                inputField.onchange = () => selectedFile(inputField);
+            }
+        </script>
+    </body>
+</html>
