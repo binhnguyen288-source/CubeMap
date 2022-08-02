@@ -3,6 +3,7 @@
     <body>
         <input type="file" id="inputFile">
         <script src="./test.js"></script>
+        <a id="download" hidden>Download</a>
         <script>
             Module.onRuntimeInitialized = () => {
                 const canvas = document.createElement('canvas');
@@ -22,7 +23,7 @@
                             canvas.height = image.naturalHeight;
                             ctx.drawImage(image, 0, 0);
                             const image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                            const nCubeSide = canvas.width / 4;
+
                             const srcPtr = Module._malloc(4 * canvas.width * canvas.height);
                             const dstPtr = Module._malloc(3 * canvas.width ** 2);
                             Module.HEAPU8.set(image_data.data, srcPtr);
@@ -33,16 +34,21 @@
 
                             const dstImageData = new ImageData(subArray, canvas.width);
 
-                            ctx.putImageData(dstImageData, 0, 0, 0, 0, canvas.width, canvas.height);
+                            ctx.putImageData(dstImageData, 0, 0);
 
                             Module._free(srcPtr);
                             Module._free(dstPtr);
+                            
+                            canvas.toBlob((blob) => {
+                                document.getElementById("download").download = "Result.png";
+                                document.getElementById("download").href = URL.createObjectURL(blob);
+                                document.getElementById("download").click();
+                            });
                         }
                         image.src = ev.target.result;
                     }
                     reader.readAsDataURL(ev.files[0]);
                 }
-                document.body.appendChild(canvas);
                 const inputField = document.getElementById("inputFile");
 
                 inputField.onchange = () => selectedFile(inputField);
