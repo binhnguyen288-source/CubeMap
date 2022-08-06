@@ -3,56 +3,141 @@
     <body>
         <input type="file" id="inputFile">
         <script src="./test.js"></script>
+        <canvas id="viewer" width="1024" height="768"></canvas>
         <a id="download" hidden>Download</a>
         <script>
             Module.onRuntimeInitialized = () => {
                 const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext("2d", {
-                    alpha: false
-                });
+                const ctx = canvas.getContext("2d");
                 const image = document.createElement('img');
+                const viewer = document.getElementById('viewer');
+                const ctxViewer = viewer.getContext("2d");
+
 
                 function selectedFile(ev) {
+                    const objectURL = URL.createObjectURL(ev.files[0]);
+                    image.onload = () => {
+                        URL.revokeObjectURL(objectURL);
 
-                    const reader = new FileReader();
+                        canvas.width = image.naturalWidth;
+                        canvas.height = image.naturalHeight;
+                        ctx.drawImage(image, 0, 0);
+                        const image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                    reader.onload = ev => {
+                        const nCubeSide = canvas.width / 4;
 
-                        image.onload = () => {
-                            canvas.width = image.naturalWidth;
-                            canvas.height = image.naturalHeight;
-                            ctx.drawImage(image, 0, 0);
-                            const image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const srcPtr = Module._malloc(4 * canvas.width * canvas.height);
+                        const dstPtr = Module._malloc(4 * nCubeSide * 6 * nCubeSide);
 
-                            const srcPtr = Module._malloc(4 * canvas.width * canvas.height);
-                            const dstPtr = Module._malloc(3 * canvas.width ** 2);
-                            Module.HEAPU8.set(image_data.data, srcPtr);
-                            Module.ccall('jsCubeMap', 'number', ['number', 'number', 'number', 'number'], [srcPtr, dstPtr, canvas.width, canvas.height]);
+                        Module.HEAPU8.set(image_data.data, srcPtr);
 
-                            canvas.height = 3 * canvas.width / 4;
-                            const subArray = new Uint8ClampedArray(Module.HEAPU8.subarray(dstPtr, dstPtr + 3 * canvas.width ** 2));
+                        Module.ccall('jsCubeMap', 'number', ['number', 'number', 'number', 'number'], [srcPtr, dstPtr, canvas.width, canvas.height]);
 
-                            const dstImageData = new ImageData(subArray, canvas.width);
+                        // canvas.width = nCubeSide;
+                        // canvas.height = 6 * nCubeSide;
 
-                            ctx.putImageData(dstImageData, 0, 0);
+                        // const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(dstPtr, dstPtr + 4 * canvas.width * canvas.height));
+                        // const dstImageData = new ImageData(dstImg, canvas.width);
 
-                            Module._free(srcPtr);
-                            Module._free(dstPtr);
-                            
-                            canvas.toBlob((blob) => {
-                                document.getElementById("download").download = "Result.png";
-                                document.getElementById("download").href = URL.createObjectURL(blob);
-                                document.getElementById("download").click();
-                            });
+                        // ctx.putImageData(dstImageData, 0, 0);
+
+                        Module._free(srcPtr);
+                        Module._free(dstPtr);
+                        
+                        // canvas.toBlob((blob) => {
+                        //     document.getElementById("download").download = "Result.jpg";
+                        //     document.getElementById("download").href = URL.createObjectURL(blob);
+                        //     document.getElementById("download").click();
+                        // }, "image/jpeg", 1);
+
+
+                        
+                        let theta0 = 0;
+                        let phi0 = 0;
+
+                        const viewerData = Module._malloc(4 * viewer.width * viewer.height);
+                        Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
+                        
+                        const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
+                        const dstImageData = new ImageData(dstImg, viewer.width);
+                        ctxViewer.putImageData(dstImageData, 0, 0);
+
+
+                                
+                                
+                        let isClicking = false;
+                        let prevPosition = null;
+                        viewer.onmousedown = ev => {
+                            isClicking = true;
+
+                            const boundingRect = viewer.getBoundingClientRect();
+
+                            prevPosition = {
+                                x: ev.clientX - boundingRect.left,
+                                y: ev.clientY - boundingRect.top
+                            };
+
                         }
-                        image.src = ev.target.result;
+
+                        viewer.onmousemove = (ev) => {
+                            if (!isClicking) return;
+
+                            const boundingRect = viewer.getBoundingClientRect();
+
+                            const curPosition = {
+                                x: ev.clientX - boundingRect.left,
+                                y: ev.clientY - boundingRect.top
+                            };
+
+                            const dx = curPosition.x - prevPosition.x;
+                            const dy = curPosition.y - prevPosition.y;
+
+                            theta0 += dx * 0.01;
+                            phi0 -= dy * 0.01;
+
+                            Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
+                            
+                            const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
+                            const dstImageData = new ImageData(dstImg, viewer.width);
+                            ctxViewer.putImageData(dstImageData, 0, 0);
+
+
+                            prevPosition = curPosition;
+
+                        }
+
+                        viewer.onmouseup = () => {
+                            isClicking = false;
+                            prevPosition = null;
+                        }
+
+                        viewer.onmouseout = () => {
+                            isClicking = false;
+                            prevPosition = null;
+                        }
+                    
+                        
+                        // setInterval(() => {
+                        //     Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
+                            
+                        //     const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
+                        //     const dstImageData = new ImageData(dstImg, viewer.width);
+                        //     ctxViewer.putImageData(dstImageData, 0, 0);
+                        // });
+
+
+
                     }
-                    reader.readAsDataURL(ev.files[0]);
+                    image.src = objectURL;
                 }
                 const inputField = document.getElementById("inputFile");
 
                 inputField.onchange = () => selectedFile(inputField);
+
+
             }
+
+            
         </script>
     </body>
 </html>

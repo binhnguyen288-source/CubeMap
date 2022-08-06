@@ -1,105 +1,97 @@
-#include <cmath>
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <cstdint>
-#include <iostream>
-using uchar = std::uint8_t;
-struct RGBA {
-    uchar* data;
-    int width, height;
+#include "Utils.hpp"
 
-    RGBA(uchar* data, int width, int height) : 
-        data{data}, width{width}, height{height} {}
+#include <array>
+
+
+RGBA* curCubeMap = nullptr;
+int nCubeSide = 0;
+
+extern "C" std::uint8_t* jsCubeMap(std::uint8_t* src_data, std::uint8_t* dst_data, int nWidth, int nHeight) {
     
-    RGBA(RGBA&& other) = delete;
-    RGBA(RGBA const& other) = delete;
-    RGBA& operator=(RGBA const& other) = delete;
-    RGBA& operator=(RGBA&& other) = delete;
-    ~RGBA() = default;
-
-    uchar const* getCPixel(int row, int col) const {
-        row  = std::clamp(row, 0, height - 1);
-        col %= width;
-        return &data[4 * (row * width + col)];
-    }
-    
-    uchar* getPixel(int row, int col) {
-        row  = std::clamp(row, 0, height - 1);
-        col %= width;
-        return &data[4 * (row * width + col)];
-    }
-};
-
-static const float pi = std::acos(-1);
-
-struct Point3D {
-    float x, y, z;
-};
-
-
-enum Face {
-    LEFT,
-    FRONT,
-    RIGHT,
-    BACK,
-    TOP,
-    BOTTOM
-};
-
-template<Face face>
-Point3D mapsToSpherical(float a, float b) {
-    if constexpr (face == LEFT)
-        return {1, a, -b};
-    if constexpr (face == FRONT)
-        return {-a, 1, -b};
-    if constexpr (face == RIGHT)
-        return {-1, -a, -b};
-    if constexpr (face == BACK)
-        return {a, -1, -b};
-    if constexpr (face == TOP)
-        return {-a, b, 1};
-    if constexpr (face == BOTTOM)
-        return {-a, -b, -1};
+    RGBA* src = new RGBA(nWidth, nHeight);
+    std::copy_n(src_data, 4 * nWidth * nHeight, src->data);
+    delete curCubeMap;
+    nCubeSide = nWidth / 4;
+    curCubeMap = toCubeMap(*src);
+    delete src;
+    std::copy_n(curCubeMap->data, 4 * nCubeSide * 6 * nCubeSide, dst_data);
+    return dst_data;
 }
 
-template<Face face>
-void toCubeMapFace(RGBA const& src, RGBA& dst) {
-    const int nCubeSide = src.width / 4;
-    const int offsetJ = face <  TOP ? nCubeSide : (face == TOP ? 0 : 2 * nCubeSide);
-    const int offsetI = face >= TOP ? nCubeSide : (face * nCubeSide);
+
+extern "C" std::uint8_t* viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, float theta0, float phi0) {
+
+    float const aspectRatio = (float)dstHeight / dstWidth;
+    const float hfov = 100 * pi / 180;
+    float const f = std::tan(hfov / 2);
+    float const vfov = 2 * std::atan(aspectRatio * f);
+    float const incY = 2.0f * f / dstWidth;
+
+    using std::cos;
+    using std::sin;
+
+    const float Rot[9] = {
+        cos(phi0) * cos(theta0), -sin(theta0), -sin(phi0) * cos(theta0),
+        cos(phi0) * sin(theta0), cos(theta0), -sin(phi0) * sin(theta0),
+        sin(phi0), 0, cos(phi0)
+    };
 
 
-    for (int j = 0; j < nCubeSide; ++j) {
-        for (int i = 0; i < nCubeSide; ++i) {
-            auto [x, y, z] = mapsToSpherical<face>(2.0f * i / nCubeSide - 1.0f, 2.0f * j / nCubeSide - 1.0f);
-            float theta = std::atan2(y, x);
-            theta += theta < 0 ? 2 * pi : 0;
-            const float phi = std::atan2(std::sqrt(x * x + y * y), z);
 
-            int srci = theta * src.width / (2 * pi);
-            int srcj = phi * src.height / pi;
+    for (int i = 0; i < dstHeight; ++i) {
+        const float XonPlane = 1;
+        const float YonPlane = -f; // initial Y
+        const float ZonPlane = aspectRatio * f * (1.0f - 2.0f * i / dstHeight);
+        
+        float x = XonPlane * Rot[0] + YonPlane * Rot[1] + ZonPlane * Rot[2];
+        float y = XonPlane * Rot[3] + YonPlane * Rot[4] + ZonPlane * Rot[5];
+        float z = XonPlane * Rot[6] + YonPlane * Rot[7] + ZonPlane * Rot[8];
 
-            std::copy_n(src.getCPixel(srcj, srci), 4, dst.getPixel(offsetJ + j, offsetI + i));
+        for (int j = 0; j < dstWidth; ++j) {
+
+            x += incY * Rot[1];
+            y += incY * Rot[4];
+            z += incY * Rot[7];
+
+            const float xxyy = x * x + y * y;
+            const float sqrtxxyy = std::sqrt(xxyy);
+            const float rradius = 1.0f / std::sqrt(xxyy + z * z);
+            const float rsqrtxxyy = 1.0f / sqrtxxyy;
+
+
+            const float cphi = z * rradius;
+            const float sphi = sqrtxxyy * rradius;
+
+            const float ctheta = x * rsqrtxxyy;
+            const float stheta = y * rsqrtxxyy;
+
+            std::array<float, 6> listrT{
+                ctheta * sphi,
+                stheta * sphi,
+                -ctheta * sphi,
+                -stheta * sphi,
+                cphi,
+                -cphi
+            };
+            int idx = std::distance(listrT.begin(), std::max_element(listrT.begin(), listrT.end()));
+            float t = 1.0f / listrT[idx];
+            
+            float X = t * ctheta * sphi;
+            float Y = t * stheta * sphi;
+            float Z = t * cphi;
+
+
+            auto [srci, srcj] = mapsToCube(idx, X, Y, Z);
+            int ii = srci * nCubeSide;
+            int jj = srcj * nCubeSide;
+
+            std::copy_n(curCubeMap->getCPixel(jj, ii), 4, &dst[4 * (i * dstWidth + j)]);
+
+
         }
     }
 
-}
 
-void toCubeMap(RGBA const& src, RGBA& dst) {
-    toCubeMapFace<LEFT>(src, dst);
-    toCubeMapFace<FRONT>(src, dst);
-    toCubeMapFace<RIGHT>(src, dst);
-    toCubeMapFace<BACK>(src, dst);
-    toCubeMapFace<TOP>(src, dst);
-    toCubeMapFace<BOTTOM>(src, dst);
-}
 
-extern "C" int jsCubeMap(uchar* src_data, uchar* dst_data, int nWidth, int nHeight) {
-    RGBA src(src_data, nWidth, nHeight);
-    RGBA dst(dst_data, nWidth, 3 * nWidth / 4);
-    std::copy_n(src_data, 4 * nWidth * nHeight, src.data);
-    toCubeMap(src, dst);
-    std::copy_n(dst.data, 3 * nWidth * nWidth, dst_data);
-    return 0;
+    return dst;
 }
