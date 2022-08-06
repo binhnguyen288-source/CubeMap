@@ -67,7 +67,8 @@
                                 
                         let isClicking = false;
                         let prevPosition = null;
-                        viewer.onmousedown = ev => {
+
+                        const btnDownHandler = (ev) => {
                             isClicking = true;
 
                             const boundingRect = viewer.getBoundingClientRect();
@@ -77,9 +78,14 @@
                                 y: ev.clientY - boundingRect.top
                             };
 
+                        };
+
+                        const btnUpHandler = () => {
+                            isClicking = false;
+                            prevPosition = null;
                         }
 
-                        viewer.onmousemove = (ev) => {
+                        const btnMoveHandler = (ev) => {
                             if (!isClicking) return;
 
                             const boundingRect = viewer.getBoundingClientRect();
@@ -106,26 +112,28 @@
 
                         }
 
-                        viewer.onmouseup = () => {
-                            isClicking = false;
-                            prevPosition = null;
+                        viewer.onmousedown = btnDownHandler;
+                        viewer.onmousemove = btnMoveHandler;
+                        viewer.onmouseup = btnUpHandler;
+                        viewer.onmouseout = btnUpHandler;
+
+
+                        viewer.ontouchstart = ev => {
+                            ev.preventDefault();
+                            btnDownHandler({
+                                clientX: ev.touches[0].clientX,
+                                clientY: ev.touches[0].clientY
+                            });
                         }
-
-                        viewer.onmouseout = () => {
-                            isClicking = false;
-                            prevPosition = null;
-                        }
-                    
-                        
-                        // setInterval(() => {
-                        //     Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
-                            
-                        //     const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
-                        //     const dstImageData = new ImageData(dstImg, viewer.width);
-                        //     ctxViewer.putImageData(dstImageData, 0, 0);
-                        // });
-
-
+                        viewer.ontouchmove = ev => {
+                            ev.preventDefault();
+                            btnMoveHandler({
+                                clientX: ev.touches[0].clientX,
+                                clientY: ev.touches[0].clientY
+                            });
+                        };
+                        viewer.ontouchend = btnUpHandler;
+                        viewer.ontouchcancel = btnUpHandler;
 
                     }
                     image.src = objectURL;
