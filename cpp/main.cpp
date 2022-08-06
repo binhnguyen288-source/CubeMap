@@ -19,10 +19,9 @@ extern "C" std::uint8_t* jsCubeMap(std::uint8_t* src_data, std::uint8_t* dst_dat
 }
 
 
-extern "C" std::uint8_t* viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, float theta0, float phi0) {
+extern "C" std::uint8_t* viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, float theta0, float phi0, float hfov) {
 
     float const aspectRatio = (float)dstHeight / dstWidth;
-    const float hfov = 100 * pi / 180;
     float const f = std::tan(hfov / 2);
     float const vfov = 2 * std::atan(aspectRatio * f);
     float const incY = 2.0f * f / dstWidth;

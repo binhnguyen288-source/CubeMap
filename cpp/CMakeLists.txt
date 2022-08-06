@@ -9,9 +9,8 @@ add_compile_options(-O3 -ffast-math)
 add_link_options(
     -O3 -ffast-math
     -sEXPORTED_FUNCTIONS=_malloc,_free,_jsCubeMap,_viewerQuery
-    -sEXPORTED_RUNTIME_METHODS=ccall 
     -sSINGLE_FILE -sALLOW_MEMORY_GROWTH
 )
 
 
-add_executable(test main.cpp)
+add_executable(viewer main.cpp)

@@ -2,10 +2,10 @@
 <html>
     <body>
         <input type="file" id="inputFile">
-        <script src="./test.js"></script>
+        <script src="./viewer.js"></script>
         <canvas id="viewer" width="1024" height="768"></canvas>
         <a id="download" hidden>Download</a>
-        <script>
+        <script defer>
             Module.onRuntimeInitialized = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext("2d");
@@ -31,7 +31,7 @@
 
                         Module.HEAPU8.set(image_data.data, srcPtr);
 
-                        Module.ccall('jsCubeMap', 'number', ['number', 'number', 'number', 'number'], [srcPtr, dstPtr, canvas.width, canvas.height]);
+                        Module._jsCubeMap(srcPtr, dstPtr, canvas.width, canvas.height);
 
                         // canvas.width = nCubeSide;
                         // canvas.height = 6 * nCubeSide;
@@ -54,13 +54,18 @@
                         
                         let theta0 = 0;
                         let phi0 = 0;
+                        let hfov = Math.PI * 100 / 180;
 
                         const viewerData = Module._malloc(4 * viewer.width * viewer.height);
-                        Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
-                        
-                        const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
-                        const dstImageData = new ImageData(dstImg, viewer.width);
-                        ctxViewer.putImageData(dstImageData, 0, 0);
+
+                        const dstImageData = new ImageData(viewer.width, viewer.height);
+                        const renderFrame = () => {
+                            Module._viewerQuery(viewerData, viewer.width, viewer.height, theta0, phi0, hfov);
+                            dstImageData.data.set(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
+                            ctxViewer.putImageData(dstImageData, 0, 0);
+                        };
+
+                        renderFrame();
 
 
                                 
@@ -101,11 +106,7 @@
                             theta0 += dx * 0.01;
                             phi0 -= dy * 0.01;
 
-                            Module.ccall('viewerQuery', 'number', ['number', 'number', 'number', 'number', 'number'], [viewerData, viewer.width, viewer.height, theta0, phi0]);
-                            
-                            const dstImg = new Uint8ClampedArray(Module.HEAPU8.subarray(viewerData, viewerData + 4 * viewer.width * viewer.height));
-                            const dstImageData = new ImageData(dstImg, viewer.width);
-                            ctxViewer.putImageData(dstImageData, 0, 0);
+                            renderFrame();
 
 
                             prevPosition = curPosition;
@@ -116,6 +117,14 @@
                         viewer.onmousemove = btnMoveHandler;
                         viewer.onmouseup = btnUpHandler;
                         viewer.onmouseout = btnUpHandler;
+                        viewer.onwheel = ev => {
+                            ev.preventDefault();
+                            if (ev.deltaY > 0 && hfov < Math.PI * 150 / 180) hfov += 0.1;
+                            if (ev.deltaY < 0 && hfov > 0.1) hfov -= 0.1;
+                            
+                            renderFrame();
+                        }
+                      
 
 
                         viewer.ontouchstart = ev => {
