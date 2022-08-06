@@ -39,8 +39,8 @@ struct Vec3D {
 
 enum Face {
     LEFT,
-    FRONT,
     RIGHT,
+    FRONT,
     BACK,
     TOP,
     BOTTOM
@@ -49,37 +49,49 @@ enum Face {
 template<Face face>
 Vec3D mapsToSpherical(float a, float b) {
     if constexpr (face == LEFT)
-        return {1, a, -b};
+        return {1, a, b};
     if constexpr (face == FRONT)
-        return {-a, 1, -b};
+        return {a, 1, b};
     if constexpr (face == RIGHT)
-        return {-1, -a, -b};
+        return {-1, a, b};
     if constexpr (face == BACK)
-        return {a, -1, -b};
+        return {a, -1, b};
     if constexpr (face == TOP)
-        return {-a, b, 1};
+        return {a, b, 1};
     if constexpr (face == BOTTOM)
-        return {-a, -b, -1};
+        return {a, b, -1};
 }
 
-std::pair<float, float> mapsToCube(int face, float x, float y, float z) {
-    switch (face) {
-        case LEFT:
-            return {(1 + y) / 2, (1 - z) / 2};
-        case FRONT:
-            return {(1 - x) / 2, (3 - z) / 2};
-        case RIGHT:
-            return {(1 - y) / 2, (5 - z) / 2};
-        case BACK:
-            return {(1 + x) / 2, (7 - z) / 2};
-        case TOP:
-            return {(1 - x) / 2, (9 + y) / 2};
-        case BOTTOM:
-            return {(1 - x) / 2, (11 - y) / 2};
+
+
+
+inline std::pair<float, float> mapsToCube(float x, float y, float z) {
+
+    float offset = 1;
+
+    if (std::fabs(x) < std::fabs(y)) {
+        std::swap(x, y);
+        offset = 3;
     }
-    return {0, 0};
-}
+    
+    if (std::fabs(x) < std::fabs(z)) {
+        std::swap(x, z); 
+        if (offset < 2) // z y x
+            std::swap(y, z); // 
+        offset = 5;
+    }
 
+    float const norm = 1.0f / std::fabs(x);
+
+    x *= norm;
+    y *= norm;
+    z *= norm;
+    
+    return {
+        (1 + y) / 2,
+        offset + (z - x) / 2,
+    };
+}
 template<Face face>
 void toCubeMapFace(RGBA const& src, RGBA& dst) {
     const int nCubeSide = src.width / 4;

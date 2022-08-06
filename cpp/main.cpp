@@ -52,35 +52,14 @@ extern "C" std::uint8_t* viewerQuery(std::uint8_t* dst, int dstWidth, int dstHei
             y += incY * Rot[4];
             z += incY * Rot[7];
 
-            const float xxyy = x * x + y * y;
-            const float sqrtxxyy = std::sqrt(xxyy);
-            const float rradius = 1.0f / std::sqrt(xxyy + z * z);
-            const float rsqrtxxyy = 1.0f / sqrtxxyy;
+            // const float cphi = z / sqrt(x * x + y * y + z * z);
+            // const float sphi = sqrt(x * x + y * y) / sqrt(x * x + y * y + z * z);
+
+            // const float ctheta = x / sqrt(x * x + y * y);
+            // const float stheta = y / sqrt(x * x + y * y);
 
 
-            const float cphi = z * rradius;
-            const float sphi = sqrtxxyy * rradius;
-
-            const float ctheta = x * rsqrtxxyy;
-            const float stheta = y * rsqrtxxyy;
-
-            std::array<float, 6> listrT{
-                ctheta * sphi,
-                stheta * sphi,
-                -ctheta * sphi,
-                -stheta * sphi,
-                cphi,
-                -cphi
-            };
-            int idx = std::distance(listrT.begin(), std::max_element(listrT.begin(), listrT.end()));
-            float t = 1.0f / listrT[idx];
-            
-            float X = t * ctheta * sphi;
-            float Y = t * stheta * sphi;
-            float Z = t * cphi;
-
-
-            auto [srci, srcj] = mapsToCube(idx, X, Y, Z);
+            auto [srci, srcj] = mapsToCube(x, y, z);
             int ii = srci * nCubeSide;
             int jj = srcj * nCubeSide;
 
