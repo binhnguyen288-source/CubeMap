@@ -3,7 +3,7 @@
     <body>
         <input type="file" id="inputFile">
         <script src="./viewer.js"></script>
-        <canvas id="viewer" width="1024" height="768"></canvas>
+        <canvas id="viewer" width="1280" height="720"></canvas>
         <a id="download" hidden>Download</a>
         <script defer>
             Module.onRuntimeInitialized = () => {
@@ -15,6 +15,8 @@
 
 
                 function selectedFile(ev) {
+
+
                     const objectURL = URL.createObjectURL(ev.files[0]);
                     image.onload = () => {
                         URL.revokeObjectURL(objectURL);
@@ -149,7 +151,10 @@
                 }
                 const inputField = document.getElementById("inputFile");
 
-                inputField.onchange = () => selectedFile(inputField);
+                inputField.onchange = () => {
+                    inputField.setAttribute('hidden', '');
+                    selectedFile(inputField)
+                };
 
 
             }
