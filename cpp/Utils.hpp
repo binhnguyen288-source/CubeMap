@@ -17,15 +17,19 @@ struct RGBA {
 
     ~RGBA() { delete[] data; }
 
-    std::uint8_t const* getCPixel(int row, int col) const {
+    std::uint8_t const* getCPixelWrap(int row, int col) const {
         row  = std::clamp(row, 0, height - 1);
         col %= width;
         return &data[4 * (row * width + col)];
     }
+
+    std::uint8_t const* getCPixelRaw(int row, int col) const {
+        row = std::clamp(row, 0, height - 1);
+        col = std::clamp(col, 0, width - 1);
+        return &data[4 * (row * width + col)];
+    }
     
     std::uint8_t* getPixel(int row, int col) {
-        row  = std::clamp(row, 0, height - 1);
-        col %= width;
         return &data[4 * (row * width + col)];
     }
 };
@@ -67,18 +71,26 @@ Vec3D mapsToSpherical(float a, float b) {
 
 inline std::pair<float, float> mapsToCube(float x, float y, float z) {
 
+
     float offset = 1;
 
     if (std::fabs(x) < std::fabs(y)) {
-        std::swap(x, y);
-        offset = 3;
+        
+        if (std::fabs(y) < std::fabs(z)) {
+            offset = 5;   
+            std::swap(x, y);
+            std::swap(x, z);
+        }
+        else {
+            offset = 3;
+            std::swap(x, y);
+        }
     }
-    
-    if (std::fabs(x) < std::fabs(z)) {
-        std::swap(x, z); 
-        if (offset < 2) // z y x
-            std::swap(y, z); // 
+    else if (std::fabs(x) < std::fabs(z)) {
+        
         offset = 5;
+        std::swap(x, y);
+        std::swap(x, z);
     }
 
     float const norm = 1.0f / std::fabs(x);
@@ -101,12 +113,31 @@ void toCubeMapFace(RGBA const& src, RGBA& dst) {
             auto [x, y, z] = mapsToSpherical<face>(2.0f * i / nCubeSide - 1.0f, 2.0f * j / nCubeSide - 1.0f);
             float theta = std::atan2(y, x);
             theta += theta < 0 ? 2 * pi : 0;
-            const float phi = std::atan2(std::sqrt(x * x + y * y), z);
+            const float phi = std::acos(z / std::sqrt(x * x + y * y + z * z));
 
-            int srci = theta * src.width / (2 * pi);
-            int srcj = phi * src.height / pi;
+            const float uf = theta * src.width / (2 * pi);
+            const float vf = phi * src.height / pi;
 
-            std::copy_n(src.getCPixel(srcj, srci), 4, dst.getPixel(offsetJ + j, i));
+
+            const int u = uf;
+            const int v = vf;
+
+            const float mu = uf - u;
+            const float nu = vf - v;
+
+            auto A = src.getCPixelWrap(v, u);
+            auto B = src.getCPixelWrap(v, u + 1);
+            
+            auto C = src.getCPixelWrap(v + 1, u);
+            auto D = src.getCPixelWrap(v + 1, u + 1);
+
+
+            auto outPix = dst.getPixel(offsetJ + j, i);
+            
+            outPix[0] = A[0] * (1 - mu) * (1 - nu) + B[0] * mu * (1 - nu) + C[0] * (1 - mu) * nu + D[0] * mu * nu;
+            outPix[1] = A[1] * (1 - mu) * (1 - nu) + B[1] * mu * (1 - nu) + C[1] * (1 - mu) * nu + D[1] * mu * nu;
+            outPix[2] = A[2] * (1 - mu) * (1 - nu) + B[2] * mu * (1 - nu) + C[2] * (1 - mu) * nu + D[2] * mu * nu;
+            outPix[3] = 255;
         }
     }
 
