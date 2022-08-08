@@ -7,8 +7,8 @@
         {
             "theta": 3.14,
             "phi": 1.570796,
-            "text": "Go inside",
-            "redirect": "Goinside"
+            "text": "TV",
+            "redirect": "TV"
         }
     ]
 }
