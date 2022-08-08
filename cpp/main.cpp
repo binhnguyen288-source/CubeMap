@@ -24,6 +24,7 @@ extern "C" void viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, floa
     float const aspectRatio = (float)dstHeight / dstWidth;
     float const f           = std::tan(hfov / 2);
     float const vfov        = 2 * std::atan(aspectRatio * f);
+    float const incY        = 2 * f / dstWidth;
 
     using std::cos;
     using std::sin;
@@ -36,15 +37,14 @@ extern "C" void viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, floa
 
     for (int i = 0; i < dstHeight; ++i) {
         const float XonPlane = aspectRatio * f * (2.0f * i / dstHeight - 1.0f);
+        float YonPlane = -f; // initial Yonplane
         constexpr float ZonPlane = 1;
 
-        for (int j = 0; j < dstWidth; ++j) {
+              float Rotx = XonPlane * Rot[0] + YonPlane * Rot[1] + ZonPlane * Rot[2];
+              float Roty = XonPlane * Rot[3] + YonPlane * Rot[4] + ZonPlane * Rot[5];
+        const float Rotz = XonPlane * Rot[6] + YonPlane * Rot[7] + ZonPlane * Rot[8];
 
-            const float YonPlane = f * (2.0f * j / dstWidth - 1.0f);
-            
-            const float Rotx = XonPlane * Rot[0] + YonPlane * Rot[1] + ZonPlane * Rot[2];
-            const float Roty = XonPlane * Rot[3] + YonPlane * Rot[4] + ZonPlane * Rot[5];
-            const float Rotz = XonPlane * Rot[6] + YonPlane * Rot[7] + ZonPlane * Rot[8];
+        for (int j = 0; j < dstWidth; ++j) {
 
 
             auto [srci, srcj] = mapsToCube(Rotx, Roty, Rotz);
@@ -53,6 +53,9 @@ extern "C" void viewerQuery(std::uint8_t* dst, int dstWidth, int dstHeight, floa
             const int jj = srcj * nCubeSide;
 
             std::copy_n(curCubeMap->getCPixelRaw(jj, ii), 4, &dst[4 * (i * dstWidth + j)]);
+            
+            Rotx += incY * Rot[1];
+            Roty += incY * Rot[4];
 
         }
     }

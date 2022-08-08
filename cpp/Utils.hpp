@@ -75,22 +75,14 @@ inline std::pair<float, float> mapsToCube(float x, float y, float z) {
     float offset = 1;
 
     if (std::fabs(x) < std::fabs(y)) {
-        
-        if (std::fabs(y) < std::fabs(z)) {
-            offset = 5;   
-            std::swap(x, y);
-            std::swap(x, z);
-        }
-        else {
-            offset = 3;
-            std::swap(x, y);
-        }
-    }
-    else if (std::fabs(x) < std::fabs(z)) {
-        
-        offset = 5;
         std::swap(x, y);
+        offset = 3;
+    }
+
+    if (std::fabs(x) < std::fabs(z)) {
         std::swap(x, z);
+        if (offset < 2) std::swap(y, z);
+        offset = 5;
     }
 
     float const norm = 1.0f / std::fabs(x);
