@@ -17,9 +17,12 @@
         <script src="./viewer.js"></script>
         <script>
             const params = new URLSearchParams(window.location.search);
-            const file = params.get("image") || '1';
+            const file = params.get("image") || 'Frontdoor';
             Module.onRuntimeInitialized = async () => {
-                const allHotspots = await (await fetch(`hotspots/${file}.json`)).json();
+                const {
+                    startupView,
+                    allHotspots
+                } = await (await fetch(`hotspots/${file}.json`)).json();
                 
                 const viewer = document.getElementById('viewer');
                 const ctxViewer = viewer.getContext("2d", { alpha: false });
@@ -71,8 +74,7 @@
 
 
 
-                let theta0 = 0;
-                let phi0 = Math.PI / 2;
+                let { theta0, phi0 } = startupView;
                 let hfov = Math.PI * 100 / 180;
 
                 const viewerData = Module._malloc(4 * viewer.width * viewer.height);
@@ -83,6 +85,7 @@
                 function createHotspot(x, y, radius, action, popupText) {
                     const path = new Path2D();
                     path.arc(x, y, radius, 0, 2 * Math.PI);
+
                     return { x, y, path, action, popupText };
                 }
 
@@ -165,8 +168,13 @@
                             if (ctxViewer.isPointInPath(hotspot.path, x, y)) {
                                 
                                 ctxViewer.font = "20px Verdana";
-                                ctxViewer.fillStyle = 'blue';
-                                ctxViewer.fillText(hotspot.popupText, hotspot.x - 50, hotspot.y - 30, 100);
+                                
+                                ctxViewer.fillStyle = 'black';
+                                ctxViewer.fillRect(hotspot.x - 75, hotspot.y - 60, 150, 25)
+                                
+                                ctxViewer.fillStyle = 'white';
+                                ctxViewer.textAlign = "center";
+                                ctxViewer.fillText(hotspot.popupText, hotspot.x, hotspot.y - 40, 150);
                             }
                         }
                     }
