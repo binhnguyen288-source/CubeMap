@@ -11,7 +11,7 @@ extern "C" void jsCubeMap(std::uint8_t* src_data, std::uint8_t* dst_data, int nW
     RGBA* src = new RGBA(nWidth, nHeight);
     std::copy_n(src_data, 4 * nWidth * nHeight, src->data);
     delete curCubeMap;
-    nCubeSide = nWidth / 4;
+    nCubeSide = nWidth / 2;
     curCubeMap = toCubeMap(*src);
     delete src;
     std::copy_n(curCubeMap->data, 4 * nCubeSide * 6 * nCubeSide, dst_data);

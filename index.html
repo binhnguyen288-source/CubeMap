@@ -45,7 +45,7 @@
                     ctx.drawImage(image, 0, 0);
                     const image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                    const nCubeSide = canvas.width / 4;
+                    const nCubeSide = canvas.width / 2;
 
                     const srcPtr = Module._malloc(4 * canvas.width * canvas.height);
                     const dstPtr = Module._malloc(4 * nCubeSide * 6 * nCubeSide);

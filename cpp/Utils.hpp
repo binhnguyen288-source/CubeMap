@@ -98,7 +98,7 @@ inline std::pair<float, float> mapsToCube(float x, float y, float z) {
 }
 template<Face face>
 void toCubeMapFace(RGBA const& src, RGBA& dst) {
-    const int nCubeSide = src.width / 4;
+    const int nCubeSide = src.width / 2;
     const int offsetJ = face * nCubeSide;
     for (int j = 0; j < nCubeSide; ++j) {
         for (int i = 0; i < nCubeSide; ++i) {
@@ -137,7 +137,7 @@ void toCubeMapFace(RGBA const& src, RGBA& dst) {
 
 RGBA* toCubeMap(RGBA const& src) {
     
-    int nCubeSide = src.width / 4;
+    int nCubeSide = src.width / 2;
     RGBA* dst = new RGBA(nCubeSide, 6 * nCubeSide);
     toCubeMapFace<LEFT>(src, *dst);
     toCubeMapFace<FRONT>(src, *dst);
