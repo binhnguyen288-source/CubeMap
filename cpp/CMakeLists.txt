@@ -8,9 +8,10 @@ add_compile_options(-O3 -ffast-math)
 
 add_link_options(
     -O3 -ffast-math
-    -sEXPORTED_FUNCTIONS=_malloc,_free,_jsCubeMap,_viewerQuery
+    -sEXPORTED_FUNCTIONS=_malloc,_free,_jsCubeMap
     -sSINGLE_FILE -sALLOW_MEMORY_GROWTH
+    -sMODULARIZE
 )
 
 
-add_executable(viewer main.cpp)
+add_executable(cubemap main.cpp)
